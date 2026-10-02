@@ -1,5 +1,8 @@
 import { getKV, setKV } from './db';
 
+/** Bugün ekranında hangi tür çalışılıyor. */
+export type Focus = 'all' | 'ayah' | 'hadith' | 'word';
+
 export interface Settings {
   newWordsPerDay: number;
   newAyahsPerDay: number;
@@ -11,6 +14,8 @@ export interface Settings {
   audioRepeat: number;
   /** Ses hızı (0.75 = yavaş) */
   audioRate: number;
+  /** Bugün ekranındaki seçili sekme; uygulama yeniden açılınca buradan devam eder */
+  focus: Focus;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -21,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   activeSurah: null,
   audioRepeat: 3,
   audioRate: 1,
+  focus: 'all',
 };
 
 /** everyayah.com klasör adları (CORS açık, sesler telefona indirilebiliyor). */

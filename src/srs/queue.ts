@@ -1,5 +1,5 @@
-import { db, type CardRow, type SurahRow } from '../db';
-import type { Settings } from '../settings';
+import { db, type CardKind, type CardRow, type SurahRow } from '../db';
+import type { Focus, Settings } from '../settings';
 import type { Hadith, Word } from '../content/types';
 import { WORDS } from '../content/words';
 import { HADITHS } from '../content/hadith';
@@ -40,13 +40,37 @@ export async function newCountsToday(now: number = Date.now()): Promise<NewCount
   };
 }
 
-/** Kuyruğun başında hangi tekrar kartı olmalı: vadesi en eski olan. */
-export async function nextDueCard(now: number = Date.now()): Promise<CardRow | undefined> {
-  return db.cards.where('due').belowOrEqual(now).first();
+/** Her sekmenin kapsadığı kart türleri. */
+const FOCUS_KINDS: Record<Exclude<Focus, 'all'>, CardKind[]> = {
+  ayah: ['ayah', 'surah'],
+  hadith: ['hadith', 'hadithSrc'],
+  word: ['word'],
+};
+
+export function inFocus(kind: CardKind, focus: Focus): boolean {
+  return focus === 'all' || FOCUS_KINDS[focus].includes(kind);
 }
 
-export async function dueCount(now: number = Date.now()): Promise<number> {
-  return db.cards.where('due').belowOrEqual(now).count();
+/** Kuyruğun başında hangi tekrar kartı olmalı: seçili türde vadesi en eski olan. */
+export async function nextDueCard(now: number = Date.now(), focus: Focus = 'all'): Promise<CardRow | undefined> {
+  return db.cards
+    .where('due')
+    .belowOrEqual(now)
+    .filter((c) => inFocus(c.kind, focus))
+    .first();
+}
+
+/** Vadesi gelmiş tekrar sayısı, sekme başına. */
+export async function dueCounts(now: number = Date.now()): Promise<Record<Focus, number>> {
+  const out: Record<Focus, number> = { all: 0, ayah: 0, hadith: 0, word: 0 };
+  await db.cards
+    .where('due')
+    .belowOrEqual(now)
+    .each((c) => {
+      out.all++;
+      for (const f of ['ayah', 'hadith', 'word'] as const) if (inFocus(c.kind, f)) out[f]++;
+    });
+  return out;
 }
 
 export async function nextNewWord(): Promise<Word | undefined> {
@@ -73,29 +97,32 @@ export async function nextNewAyah(settings: Settings): Promise<{ surah: SurahRow
 }
 
 /**
- * Sıradaki çalışma öğesi. Öncelik:
+ * Sıradaki çalışma öğesi; yalnızca seçili sekmenin (settings.focus) türleri. Öncelik:
  * 1) vadesi gelmiş tekrarlar  2) yeni ayet  3) yeni hadis  4) yeni kelime
  * 5) yakında vadesi gelecek öğrenme kartları (beklememek için erken göster)
  */
 export async function nextItem(settings: Settings, now: number = Date.now()): Promise<Item | null> {
-  const due = await nextDueCard(now);
+  const focus = settings.focus;
+  const want = (f: Exclude<Focus, 'all'>) => focus === 'all' || focus === f;
+
+  const due = await nextDueCard(now, focus);
   if (due) return { type: 'review', card: due };
 
   const counts = await newCountsToday(now);
-  if (counts.ayahs < settings.newAyahsPerDay) {
+  if (want('ayah') && counts.ayahs < settings.newAyahsPerDay) {
     const a = await nextNewAyah(settings);
     if (a) return { type: 'newAyah', ...a };
   }
-  if (counts.hadiths < settings.newHadithsPerDay) {
+  if (want('hadith') && counts.hadiths < settings.newHadithsPerDay) {
     const h = await nextNewHadith();
     if (h) return { type: 'newHadith', hadith: h };
   }
-  if (counts.words < settings.newWordsPerDay) {
+  if (want('word') && counts.words < settings.newWordsPerDay) {
     const w = await nextNewWord();
     if (w) return { type: 'newWord', word: w };
   }
 
-  const soon = await nextDueCard(now + LEARN_AHEAD_MS);
+  const soon = await nextDueCard(now + LEARN_AHEAD_MS, focus);
   if (soon) return { type: 'review', card: soon };
   return null;
 }

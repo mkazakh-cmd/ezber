@@ -33,7 +33,7 @@ export function App() {
   return (
     <>
       <main>
-        {tab === 'today' && <Today settings={settings} goLibrary={() => setTab('library')} />}
+        {tab === 'today' && <Today settings={settings} update={update} goLibrary={() => setTab('library')} />}
         {tab === 'library' && <Library settings={settings} update={update} />}
         {tab === 'stats' && <Stats />}
         {tab === 'settings' && <SettingsScreen settings={settings} update={update} />}

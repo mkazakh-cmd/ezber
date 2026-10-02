@@ -258,6 +258,17 @@ input[type='range'] { padding: 0; }
 .seg { display: flex; background: var(--surface-2); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 14px; }
 .seg button { flex: 1; border: none; background: none; padding: 8px; border-radius: 9px; color: var(--muted); }
 .seg button.on { background: var(--surface); color: var(--text); font-weight: 600; }
+.seg button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; white-space: nowrap; }
+.badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-width: 18px;
+  padding: 0 5px;
+  line-height: 18px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--accent-text);
+}
 
 .toast {
   position: fixed;
